@@ -56,17 +56,17 @@ Raises:
 def check_nn_gradients():
     input_layer_size = 3
     hidden_layer_1_size = 4
-    hidden_layer_2_size = 6
-    num_labels = 3
+    hidden_layer_2_size = 4
+    num_labels = 2
     m = 5
     lambda_ = 2
 
     architecture = [
-        [input_layer_size, None],
-        [hidden_layer_1_size, 'sigmoid'],
-        [hidden_layer_2_size, 'relu'],
-        [num_labels, 'softmax']
-    ]
+            [input_layer_size, None],
+            [hidden_layer_1_size, 'relu'],
+            [hidden_layer_2_size, 'relu'],
+            [1, 'sigmoid']
+        ]
     mlp = MultiLayerPerceptron(architecture, lambda_=lambda_)
 
     X = default_rng(1337).uniform(size=(m, input_layer_size))
@@ -83,6 +83,7 @@ def check_nn_gradients():
         / np.sqrt(((numgrad + grad) ** 2).sum())
     print(f'\nThe relative difference between our gradient (analytical)\
  and the numerical gradient is {diff}')
+    assert diff < 1e-9
     print(np.hstack([grad.reshape(-1, 1), numgrad.reshape(-1, 1)]))
 
 
@@ -139,6 +140,7 @@ if __name__ == "__main__":
         mlp = MultiLayerPerceptron(architecture, lambda_=lambda_,
                                    init_theta=theta)
         predictions_test = mlp.predict(x_test, verbose=True, y=y_test)
+        predictions_test = (predictions_test > 0.5).astype('int')
 
         # Calculate test set accuracy
         correct = (predictions_test == y_test).sum()
@@ -183,28 +185,31 @@ if __name__ == "__main__":
         input_layer_size = n
         hidden_layer_1_size = 100
         hidden_layer_2_size = 100
-        num_labels = 2
         lambda_ = 0
 
         # Gradient checking
         check_nn_gradients()
 
-        # Set the models's architecture (the size of each layer)
+        # Set the models's architecture (the size and activation of each layer)
         architecture = [
             [input_layer_size, None],
             [hidden_layer_1_size, 'relu'],
             [hidden_layer_2_size, 'relu'],
-            [num_labels, 'softmax']
+            [1, 'sigmoid']
         ]
-        mlp = MultiLayerPerceptron(architecture, lambda_=lambda_,)
+        mlp = MultiLayerPerceptron(architecture, lambda_=lambda_)
 
         # Train the model using gradient descent
-        J_train_history, J_valid_history = mlp.fit(x_train, y_train, x_valid,
-                                                   y_valid, 0.05, 2000)
+        J_train_history, J_valid_history = mlp.fit(
+            x_train, y_train, x_valid,
+            y_valid, 0.1, 10000, batch_size=128
+            )
 
         # Calculate model predictions on the training and validation sets
         predictions_train = mlp.predict(x_train)
+        predictions_train = (predictions_train > 0.5).astype('int')
         predictions_valid = mlp.predict(x_valid)
+        predictions_valid = (predictions_valid > 0.5).astype('int')
 
         # Calculate the mean squared error on the training and validation sets
         mse_train = mlp.mse(predictions_train, y_train)
